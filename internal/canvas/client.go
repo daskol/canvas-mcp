@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/daskol/canvas-mcp/internal/buildinfo"
 )
 
 const maxResponseBytes = 8 << 20
@@ -102,7 +104,7 @@ func (c *Client) Get(ctx context.Context, path string, query url.Values, pageURL
 		}
 		request.Header.Set("Authorization", "Bearer "+c.token)
 		request.Header.Set("Accept", "application/json")
-		request.Header.Set("User-Agent", "canvas-mcp/0.0.0")
+		request.Header.Set("User-Agent", "canvas-mcp/"+buildinfo.Version)
 		response, err := c.http.Do(request)
 		if err != nil {
 			if ctx.Err() != nil {

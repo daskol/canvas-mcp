@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/daskol/canvas-mcp/internal/buildinfo"
 	"github.com/daskol/canvas-mcp/internal/canvas"
 	"github.com/daskol/canvas-mcp/internal/mcpserver"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -18,17 +19,23 @@ import (
 const defaultBaseURL = "https://lms.skoltech.ru"
 
 var (
-	baseURL   string
-	tokenPath string
+	baseURL     string
+	tokenPath   string
+	showVersion bool
 )
 
 func init() {
+	flag.BoolVar(&showVersion, "version", false, "print the release version and exit")
 	flag.StringVar(&baseURL, "base-url", envDefault("CANVAS_BASE_URL", defaultBaseURL), "Canvas HTTPS origin (required unless CANVAS_BASE_URL is set)")
 	flag.StringVar(&tokenPath, "token-path", envDefault("CANVAS_TOKEN_FILE", "token"), "path to a Canvas access token file")
 }
 
 func main() {
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("canvas-mcp %s\n", buildinfo.Version)
+		return
+	}
 
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "canvas-mcp:", err)
