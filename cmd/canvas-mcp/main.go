@@ -15,30 +15,49 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+const defaultBaseURL = "https://lms.skoltech.ru"
+
+var (
+	baseURL   string
+	tokenPath string
+)
+
+func init() {
+	flag.StringVar(&baseURL, "base-url", envDefault("CANVAS_BASE_URL", defaultBaseURL), "Canvas HTTPS origin (required unless CANVAS_BASE_URL is set)")
+	flag.StringVar(&tokenPath, "token-path", envDefault("CANVAS_TOKEN_FILE", "token"), "path to a Canvas access token file")
+}
+
 func main() {
-	baseURL := flag.String("base-url", envDefault("CANVAS_BASE_URL", ""), "Canvas HTTPS origin (required unless CANVAS_BASE_URL is set)")
-	tokenFile := flag.String("token-file", envDefault("CANVAS_TOKEN_FILE", "token"), "path to a Canvas access token file")
 	flag.Parse()
-	if flag.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "canvas-mcp: unexpected positional arguments")
-		os.Exit(2)
+
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "canvas-mcp:", err)
+		os.Exit(1)
 	}
-	if strings.TrimSpace(*baseURL) == "" {
-		fail(errors.New("--base-url or CANVAS_BASE_URL is required"))
+}
+
+func run() error {
+	if strings.TrimSpace(baseURL) == "" {
+		return errors.New("--base-url or CANVAS_BASE_URL is required")
 	}
-	token, err := canvas.ReadToken(*tokenFile)
+	token, err := canvas.ReadToken(tokenPath)
 	if err != nil {
-		fail(err)
+		return err
 	}
-	client, err := canvas.New(*baseURL, token)
+	client, err := canvas.New(baseURL, token)
 	if err != nil {
-		fail(err)
+		return err
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+
+	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := mcpserver.New(client).Run(ctx, &mcp.StdioTransport{}); err != nil && !errors.Is(err, context.Canceled) {
-		fail(err)
+
+	err = mcpserver.New(client).Run(ctx, &mcp.StdioTransport{})
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return err
 	}
+	return nil
 }
 
 func envDefault(name, fallback string) string {
@@ -46,9 +65,4 @@ func envDefault(name, fallback string) string {
 		return value
 	}
 	return fallback
-}
-
-func fail(err error) {
-	fmt.Fprintln(os.Stderr, "canvas-mcp:", err)
-	os.Exit(1)
 }
